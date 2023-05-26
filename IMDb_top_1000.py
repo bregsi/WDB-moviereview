@@ -11,6 +11,9 @@ from selenium.webdriver.common.by import By
 import os
 import filecmp
 import shutil
+# ChromeService and ChromDriverManager as in https://pypi.org/project/webdriver-manager/#use-with-chrome
+from selenium.webdriver.chrome.service import Service as ChromeService
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.common.proxy import Proxy, ProxyType
 
 # Configure logging
@@ -27,7 +30,6 @@ DATA_DIR = Path("data")
 RETRY_ATTEMPTS = 3
 PROXIES = ["ip1:port1", "ip2:port2", "ip3:port3"]
 
-
 def setup_driver(proxy):
     user_agent = UserAgent().random
     webdriver.DesiredCapabilities.CHROME["proxy"] = {
@@ -39,8 +41,8 @@ def setup_driver(proxy):
     chrome_options = Options()
     chrome_options.add_argument(f"user-agent={user_agent}")
     chrome_options.add_argument("--headless")
-
-    return webdriver.Chrome(options=chrome_options)
+    # returns webdriver and automatically downloads and installs the appropriate ChromeDriver for your system with the Manager
+    return webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=chrome_options)
 
 
 def get_movie_data(driver):
