@@ -93,66 +93,63 @@ def get_movie_data(driver):
     return rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars
 
 
-def main():
-    for proxy in PROXIES:
-        driver = setup_driver(proxy)
+# Main script
+for proxy in PROXIES:
+    driver = setup_driver(proxy)
 
-        for attempt in range(RETRY_ATTEMPTS):
-            try:
-                driver.get(BASE_URL)
-                next_page = driver.find_element(By.LINK_TEXT, "Next »")
-                break
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
-                logger.info("Retrying...")
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            driver.get(BASE_URL)
+            next_page = driver.find_element(By.LINK_TEXT, "Next »")
+            break
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            logger.info("Retrying...")
 
-        else:
-            logger.error("Failed to retrieve page after multiple attempts. Moving to the next proxy.")
-            continue
+    else:
+        logger.error("Failed to retrieve page after multiple attempts. Moving to the next proxy.")
+        continue
 
-        # Scrape the data
-        rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars = get_movie_data(driver)
+    # Scrape the data
+    rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars = get_movie_data(driver)
 
-        # Create a DataFrame with the scraped data
-        df = pd.DataFrame(
-            {
-                "rang": rang,
-                "film": film,
-                "jahr": jahr,
-                "fsk": fsk,
-                "dauer": dauer,
-                "genre": genre,
-                "bewertung": bewertung,
-                "regisseur": regisseur,
-                "stars": stars,
-            }
-        )
+    # Create a DataFrame with the scraped data
+    df = pd.DataFrame(
+        {
+            "rang": rang,
+            "film": film,
+            "jahr": jahr,
+            "fsk": fsk,
+            "dauer": dauer,
+            "genre": genre,
+            "bewertung": bewertung,
+            "regisseur": regisseur,
+            "stars": stars,
+        }
+    )
 
-        # Save the DataFrame as a temporary CSV file
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        temp_file_path = DATA_DIR / "temp_imdb_top_1000.csv"
-        df.to_csv(temp_file_path, index=False)
+    # Save the DataFrame as a temporary CSV file
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    temp_file_path = DATA_DIR / "temp_imdb_top_1000.csv"
+    df.to_csv(temp_file_path, index=False)
 
-        # Check if the data file already exists
-        file_path = DATA_DIR / "imdb_top_1000.csv"
-        if file_path.exists():
-            # Compare the contents of the old and new files
-            if not filecmp.cmp(temp_file_path, file_path, shallow=False):
-                # If the files are different, replace the old file with the new one
-                logger.info("Data has changed. Updating the existing file.")
-                os.remove(file_path)
-                shutil.move(temp_file_path, file_path)
-                logger.info(f"Data saved to {file_path}")
-            else:
-                logger.info("Data has not changed. No update is necessary.")
-                os.remove(temp_file_path)
-        else:
-            # If the file does not exist, save the new data
+    # Check if the data file already exists
+    file_path = DATA_DIR / "imdb_top_1000.csv"
+    if file_path.exists():
+        # Compare the contents of the old and new files
+        if not filecmp.cmp(temp_file_path, file_path, shallow=False):
+            # If the files are different, replace the old file with the new one
+            logger.info("Data has changed. Updating the existing file.")
+            os.remove(file_path)
             shutil.move(temp_file_path, file_path)
             logger.info(f"Data saved to {file_path}")
+        else:
+            logger.info("Data has not changed. No update is necessary.")
+            os.remove(temp_file_path)
+    else:
+        # If the file does not exist, save the new data
+        shutil.move(temp_file_path, file_path)
+        logger.info(f"Data saved to {file_path}")
 
-        break
+    break
 
-
-if __name__ == "__main__":
-    main()
