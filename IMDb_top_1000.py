@@ -29,6 +29,9 @@ PROXIES = ["ip1:port1", "ip2:port2", "ip3:port3"]
 
 
 def setup_driver(proxy):
+    """
+    Setup of the selenium webdriver for the "Chrome" browser
+    """
     user_agent = UserAgent().random
     webdriver.DesiredCapabilities.CHROME["proxy"] = {
         "httpProxy": proxy,
@@ -44,9 +47,12 @@ def setup_driver(proxy):
 
 
 def get_movie_data(driver):
+    """
+    Gets the Movie Data with XPATH
+    """
     rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars = [], [], [], [], [], [], [], [], []
 
-    last_page_reached = False
+    global last_page_reached
     page_number = 1
     while not last_page_reached:
         movie_info = driver.find_elements(By.XPATH, '//div[@class="lister-item-content"]')
@@ -92,67 +98,66 @@ def get_movie_data(driver):
 
     return rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars
 
+def save_data(df, temp_file_path, file_path):
+    """
+    Saves the DataFrame to a temporary CSV file and checks if an update is necessary
+    """
+    df.to_csv(temp_file_path, index=False)
 
-def main():
-    for proxy in PROXIES:
-        driver = setup_driver(proxy)
-
-        for attempt in range(RETRY_ATTEMPTS):
-            try:
-                driver.get(BASE_URL)
-                next_page = driver.find_element(By.LINK_TEXT, "Next »")
-                break
-            except Exception as e:
-                logger.error(f"An error occurred: {e}")
-                logger.info("Retrying...")
-
-        else:
-            logger.error("Failed to retrieve page after multiple attempts. Moving to the next proxy.")
-            continue
-
-        # Scrape the data
-        rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars = get_movie_data(driver)
-
-        # Create a DataFrame with the scraped data
-        df = pd.DataFrame(
-            {
-                "rang": rang,
-                "film": film,
-                "jahr": jahr,
-                "fsk": fsk,
-                "dauer": dauer,
-                "genre": genre,
-                "bewertung": bewertung,
-                "regisseur": regisseur,
-                "stars": stars,
-            }
-        )
-
-        # Save the DataFrame as a temporary CSV file
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        temp_file_path = DATA_DIR / "temp_imdb_top_1000.csv"
-        df.to_csv(temp_file_path, index=False)
-
-        # Check if the data file already exists
-        file_path = DATA_DIR / "imdb_top_1000.csv"
-        if file_path.exists():
-            # Compare the contents of the old and new files
-            if not filecmp.cmp(temp_file_path, file_path, shallow=False):
-                # If the files are different, replace the old file with the new one
-                logger.info("Data has changed. Updating the existing file.")
-                os.remove(file_path)
-                shutil.move(temp_file_path, file_path)
-                logger.info(f"Data saved to {file_path}")
-            else:
-                logger.info("Data has not changed. No update is necessary.")
-                os.remove(temp_file_path)
-        else:
-            # If the file does not exist, save the new data
+    if file_path.exists():
+        if not filecmp.cmp(temp_file_path, file_path, shallow=False):
+            logger.info("Data has changed. Updating the existing file.")
+            os.remove(file_path)
             shutil.move(temp_file_path, file_path)
             logger.info(f"Data saved to {file_path}")
+        else:
+            logger.info("Data has not changed. No update is necessary.")
+            os.remove(temp_file_path)
+    else:
+        shutil.move(temp_file_path, file_path)
+        logger.info(f"Data saved to {file_path}")
 
-        break
 
+#Main
+last_page_reached = False
+for proxy in PROXIES:
+    driver = setup_driver(proxy)
 
-if __name__ == "__main__":
-    main()
+    for attempt in range(RETRY_ATTEMPTS):
+        try:
+            driver.get(BASE_URL)
+            next_page = driver.find_element(By.LINK_TEXT, "Next »")
+            break
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            logger.info("Retrying...")
+
+    else:
+        logger.error("Failed to retrieve page after multiple attempts. Moving to the next proxy.")
+        continue
+
+    # Scrape the data
+    rang, film, jahr, fsk, dauer, genre, bewertung, regisseur, stars = get_movie_data(driver)
+
+    # Create a DataFrame with the scraped data
+    df = pd.DataFrame(
+        {
+            "rang": rang,
+            "film": film,
+            "jahr": jahr,
+            "fsk": fsk,
+            "dauer": dauer,
+            "genre": genre,
+            "bewertung": bewertung,
+            "regisseur": regisseur,
+            "stars": stars,
+        }
+    )
+
+    # Save the DataFrame as a temporary CSV file
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    temp_file_path = DATA_DIR / "temp_imdb_top_1000.csv"
+    file_path = DATA_DIR / "imdb_top_1000.csv"
+    save_data(df, temp_file_path, file_path)
+
+    break
